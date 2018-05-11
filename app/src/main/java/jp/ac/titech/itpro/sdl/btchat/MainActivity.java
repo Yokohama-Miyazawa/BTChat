@@ -91,6 +91,7 @@ public class MainActivity extends AppCompatActivity {
     private SoundPool soundPool;
     private int sound_connected;
     private int sound_disconnected;
+    private int sound_buttonpushed;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -152,6 +153,7 @@ public class MainActivity extends AppCompatActivity {
         sound_connected = soundPool.load(this, R.raw.nhk_doorbell, 1);
         // https://www.nhk.or.jp/archives/creative/material/view.html?m=D0002070102_00000
         sound_disconnected = soundPool.load(this, R.raw.nhk_woodblock2, 1);
+        sound_buttonpushed = soundPool.load(this, R.raw.nhk_woodblock2, 1);
 
         btAdapter = BluetoothAdapter.getDefaultAdapter();
         if (btAdapter != null)
@@ -282,6 +284,21 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, R.string.toast_empty_message, Toast.LENGTH_SHORT).show();
                 return;
             }
+            message_seq++;
+            long time = System.currentTimeMillis();
+            ChatMessage message = new ChatMessage(message_seq, time, content, devName);
+            commThread.send(message);
+            chatLogAdapter.add(message);
+            chatLogAdapter.notifyDataSetChanged();
+            chatLogView.smoothScrollToPosition(chatLog.size());
+            inputText.getEditableText().clear();
+        }
+    }
+
+    public void onClickPlayButton(View v){
+        Log.d(TAG, "onClickPlayButton");
+        if (commThread != null) {
+            String content = ":play_sound";
             message_seq++;
             long time = System.currentTimeMillis();
             ChatMessage message = new ChatMessage(message_seq, time, content, devName);
@@ -621,7 +638,7 @@ public class MainActivity extends AppCompatActivity {
     private final static int MESG_RECEIVED = 2222;
     private final static int MESG_FINISHED = 3333;
 
-    private static class CommHandler extends Handler {
+    private class CommHandler extends Handler {
         private final static String TAG = "CommHandler";
         WeakReference<MainActivity> activityRef;
 
@@ -645,10 +662,20 @@ public class MainActivity extends AppCompatActivity {
                 activity.setState(State.Disconnected);
                 break;
             case MESG_RECEIVED:
-                activity.showMessage((ChatMessage) msg.obj);
+                ChatMessage message = (ChatMessage)msg.obj;
+                if (message.content.equals(":play_sound")) {
+                    buttonSound();
+                }
+                else {
+                    activity.showMessage((ChatMessage) msg.obj);
+                }
                 break;
             }
         }
+    }
+
+    private void buttonSound() {
+        soundPool.play(sound_buttonpushed, 1.0f, 1.0f, 0, 0, 1);
     }
 
     private CommHandler commHandler = new CommHandler(this);
